@@ -1,0 +1,30 @@
+# Project dependencies
+-r requirements.txt
+
+# Testing
+pytest==8.2.2
+pytest-mock==3.14.0
+
+# Type checking
+mypy==1.7.1  
+
+# Debugging
+ipdb==0.13.13  
+
+# Security
+bandit==1.7.5
+
+# Performance profiling
+py-spy==0.3.14
+
+# Dependency management
+# Note: pip-tools is not in pip freeze, you may want to add it if needed
+
+# Environment management
+python-dotenv==1.0.1  # Already in requirements.txt, but included here for completeness
+
+# CLI tools
+typer[all]==0.12.3  # Already in requirements.txt, but included here for completeness
+# Code Formating
+black==24.4.2
+isort==5.12.0
