@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field
 from rich import print as rprint
@@ -77,7 +77,7 @@ class Orchestrator(BaseModel):
                 create_assistant("MainAssistant", settings.MAIN_ASSISTANT), main_prompt
             )
 
-            logging.info(f"Main assistant response received")
+            logging.info("Main assistant response received")
             self.state.task_exchanges.append(
                 TaskExchange(role="main_assistant", content=main_response)
             )
@@ -99,7 +99,7 @@ class Orchestrator(BaseModel):
                 create_assistant("SubAssistant", settings.SUB_ASSISTANT), sub_task_prompt
             )
 
-            logging.info(f"Sub-assistant response received")
+            logging.info("Sub-assistant response received")
             self.state.task_exchanges.append(
                 TaskExchange(role="sub_assistant", content=sub_response)
             )
@@ -140,9 +140,9 @@ class Orchestrator(BaseModel):
             objective (str): The original objective of the workflow.
             final_output (str): The final refined output of the workflow.
         """
-        log_content = f"# SAA Orchestrator Exchange Log\n\n"
+        log_content = "# SAA Orchestrator Exchange Log\n\n"
         log_content += f"## Objective\n{objective}\n\n"
-        log_content += f"## Task Breakdown and Execution\n\n"
+        log_content += "## Task Breakdown and Execution\n\n"
 
         for exchange in self.state.task_exchanges:
             log_content += f"### {exchange.role.capitalize()}\n{exchange.content}\n\n"
