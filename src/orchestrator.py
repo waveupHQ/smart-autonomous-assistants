@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from .assistants import create_assistant, get_full_response
 from .config import settings
-from .utils.exceptions import WorkflowError, AssistantError
+from .utils.exceptions import AssistantError, WorkflowError
 from .utils.logging import setup_logging
 
 logger = setup_logging()
