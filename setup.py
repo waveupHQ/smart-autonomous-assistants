@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="smart-autonomous-assistants",
-    version="0.1.1",
+    version="0.1.2",
     author="jeblister",
     author_email="jeblister@waveup.dev",
     description="A system for orchestrating multiple AI assistants to accomplish complex tasks",
