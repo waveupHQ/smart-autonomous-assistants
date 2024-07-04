@@ -10,5 +10,5 @@ __all__ = [
     "settings",
     "Orchestrator",
     "Task",
-    "TaskExchange"
+    "TaskExchange",
 ]

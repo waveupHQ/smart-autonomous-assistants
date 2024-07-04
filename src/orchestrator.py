@@ -1,15 +1,15 @@
 import json
-import logging
 import os
 from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field
-from rich import print as rprint
 
 from .assistants import create_assistant, get_full_response
 from .config import settings
+from .utils.exceptions import WorkflowError, AssistantError
+from .utils.logging import setup_logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = setup_logging()
 
 
 class TaskExchange(BaseModel):
@@ -37,10 +37,6 @@ class State(BaseModel):
 
 
 class Orchestrator(BaseModel):
-    """
-    Manages the workflow of AI assistants to accomplish complex tasks.
-    """
-
     state: State = State()
     output_dir: str = Field(default_factory=lambda: os.path.join(os.getcwd(), "output"))
 
@@ -58,56 +54,71 @@ class Orchestrator(BaseModel):
         Returns:
             str: The final refined output of the workflow.
         """
-        rprint(f"[bold green]Starting workflow with objective:[/bold green] {objective}")
-        logging.info(f"Starting workflow with objective: {objective}")
+
+        logger.info(f"Starting workflow with objective: {objective}")
         self.state.task_exchanges.append(TaskExchange(role="user", content=objective))
-
         task_counter = 1
-        while True:
-            rprint(f"\n[bold blue]--- Task {task_counter} ---[/bold blue]")
-            logging.info(f"Starting task {task_counter}")
-            main_prompt = (
-                f"Objective: {objective}\n\n"
-                f"Current progress:\n{json.dumps(self.state.to_dict(), indent=2)}\n\n"
-                "Break down this objective into the next specific sub-task, or if the objective is fully achieved, "
-                "start your response with 'ALL DONE:' followed by the final output."
-            )
-            logging.debug(f"Main prompt: {main_prompt}")
-            main_response = get_full_response(
-                create_assistant("MainAssistant", settings.MAIN_ASSISTANT), main_prompt
-            )
+        try:
+            while True:
+                logger.info(f"Starting task {task_counter}")
+                main_prompt = self._generate_main_prompt(objective)
+                main_response = self._get_assistant_response("main", main_prompt)
 
-            logging.info("Main assistant response received")
+                if main_response.startswith("ALL DONE:"):
+                    logger.info("Workflow completed")
+                    break
+
+                sub_task_prompt = self._generate_sub_task_prompt(main_response)
+                sub_response = self._get_assistant_response("sub", sub_task_prompt)
+
+                self.state.tasks.append(Task(task=main_response, result=sub_response))
+                task_counter += 1
+
+            refined_output = self._get_refined_output(objective)
+            self._save_exchange_log(objective, refined_output)
+            logger.info("Exchange log saved")
+
+            return refined_output
+        except AssistantError as e:
+            logger.error(f"Assistant error: {str(e)}")
+            raise WorkflowError(f"Workflow failed due to assistant error: {str(e)}")
+        except Exception as e:
+            logger.exception("Unexpected error in workflow execution")
+            raise WorkflowError(f"Unexpected error in workflow execution: {str(e)}")
+
+    def _generate_main_prompt(self, objective: str) -> str:
+        return (
+            f"Objective: {objective}\n\n"
+            f"Current progress:\n{json.dumps(self.state.to_dict(), indent=2)}\n\n"
+            "Break down this objective into the next specific sub-task, or if the objective is fully achieved, "
+            "start your response with 'ALL DONE:' followed by the final output."
+        )
+
+    def _generate_sub_task_prompt(self, main_response: str) -> str:
+        return (
+            f"Previous tasks: {json.dumps([task.to_dict() for task in self.state.tasks], indent=2)}\n\n"
+            f"Current task: {main_response}\n\n"
+            "Execute this task and provide the result. Use the provided functions to create, read, or list files as needed. "
+            f"All file operations should be relative to the '{self.output_dir}' directory."
+        )
+
+    def _get_assistant_response(self, assistant_type: str, prompt: str) -> str:
+        try:
+            assistant_model = getattr(settings, f"{assistant_type.upper()}_ASSISTANT")
+            assistant = create_assistant(f"{assistant_type.capitalize()}Assistant", assistant_model)
+            response = get_full_response(assistant, prompt)
+            logger.info(f"{assistant_type.capitalize()} assistant response received")
             self.state.task_exchanges.append(
-                TaskExchange(role="main_assistant", content=main_response)
+                TaskExchange(role=f"{assistant_type}_assistant", content=response)
             )
-            rprint(f"[green]MAIN_ASSISTANT response:[/green] {main_response[:100]}...")
-
-            if main_response.startswith("ALL DONE:"):
-                rprint("[bold green]Workflow completed![/bold green]")
-                logging.info("Workflow completed")
-                break
-
-            sub_task_prompt = (
-                f"Previous tasks: {json.dumps([task.to_dict() for task in self.state.tasks], indent=2)}\n\n"
-                f"Current task: {main_response}\n\n"
-                "Execute this task and provide the result. Use the provided functions to create, read, or list files as needed. "
-                f"All file operations should be relative to the '{self.output_dir}' directory."
-            )
-            logging.debug(f"Sub-task prompt: {sub_task_prompt}")
-            sub_response = get_full_response(
-                create_assistant("SubAssistant", settings.SUB_ASSISTANT), sub_task_prompt
+            return response
+        except Exception as e:
+            logger.error(f"Error getting response from {assistant_type} assistant: {str(e)}")
+            raise AssistantError(
+                f"Error getting response from {assistant_type} assistant: {str(e)}"
             )
 
-            logging.info("Sub-assistant response received")
-            self.state.task_exchanges.append(
-                TaskExchange(role="sub_assistant", content=sub_response)
-            )
-            self.state.tasks.append(Task(task=main_response, result=sub_response))
-            rprint(f"[green]SUB_ASSISTANT response:[/green] {sub_response[:100]}...")
-
-            task_counter += 1
-
+    def _get_refined_output(self, objective: str) -> str:
         refiner_prompt = (
             f"Original objective: {objective}\n\n"
             f"Task breakdown and results: {json.dumps([task.to_dict() for task in self.state.tasks], indent=2)}\n\n"
@@ -115,22 +126,7 @@ class Orchestrator(BaseModel):
             f"You can use the provided functions to list and read files if needed. All files are in the '{self.output_dir}' directory. "
             "Provide your response as a string, not a list or dictionary."
         )
-        logging.debug(f"Refiner prompt: {refiner_prompt}")
-        refined_output = get_full_response(
-            create_assistant("RefinerAssistant", settings.REFINER_ASSISTANT), refiner_prompt
-        )
-
-        logging.info("Refiner assistant response received")
-        self.state.task_exchanges.append(
-            TaskExchange(role="refiner_assistant", content=refined_output)
-        )
-        rprint(f"[green]REFINER_ASSISTANT response:[/green] {refined_output[:100]}...")
-
-        self._save_exchange_log(objective, refined_output)
-        rprint("[bold blue]Exchange log saved to 'exchange_log.md'[/bold blue]")
-        logging.info("Exchange log saved")
-
-        return refined_output
+        return self._get_assistant_response("refiner", refiner_prompt)
 
     def _save_exchange_log(self, objective: str, final_output: str):
         """
@@ -152,4 +148,4 @@ class Orchestrator(BaseModel):
         log_file_path = os.path.join(self.output_dir, "exchange_log.md")
         with open(log_file_path, "w") as f:
             f.write(log_content)
-        rprint(f"[blue]Exchange log saved to:[/blue] {log_file_path}")
+        logger.info(f"Exchange log saved to: {log_file_path}")

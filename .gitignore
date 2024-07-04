@@ -79,3 +79,6 @@ copy_py_files.py
 
 # An empty output folder
 output/
+
+# Logs
+logs/

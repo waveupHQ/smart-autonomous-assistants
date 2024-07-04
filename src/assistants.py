@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 
@@ -11,8 +10,12 @@ from phi.llm.openai import OpenAIChat
 from phi.tools.tavily import TavilyTools
 
 from src.config import settings
+from src.utils.exceptions import AssistantError
+from src.utils.logging import setup_logging
 
 load_dotenv()  # This loads the variables from .env
+
+logger = setup_logging()
 
 # Ensure the output directory exists
 output_dir = os.path.join(os.getcwd(), "output")
@@ -22,7 +25,7 @@ os.makedirs(output_dir, exist_ok=True)
 try:
     vertexai.init(project=settings.PROJECT_ID, location=settings.LOCATION)
 except Exception as e:
-    logging.error(f"Error initializing VertexAI: {str(e)}")
+    logger.error(f"Error initializing VertexAI: {str(e)}")
 
 
 def create_file(file_path: str, content: str):
@@ -44,27 +47,37 @@ def read_file(file_path: str):
 def list_files(directory: str = ""):
     full_path = os.path.join(output_dir, directory)
     if os.path.exists(full_path):
-        return os.listdir(full_path)
+        files = os.listdir(full_path)
+        return ", ".join(files) if files else "No files found"
     return f"Directory not found: {full_path}"
 
 
 # Create assistants
 def create_assistant(name: str, model: str):
-    if model.startswith("gemini"):
-        llm = Gemini(model=model)
-    elif model.startswith("claude"):
-        llm = Claude(model=model, api_key=settings.ANTHROPIC_API_KEY)
-    elif model.startswith("gpt"):
-        llm = OpenAIChat(model=model, api_key=settings.OPENAI_API_KEY)
-    else:
-        raise ValueError(f"Unsupported model: {model}")
+    try:
+        if model.startswith("gemini"):
+            llm = Gemini(model=model)
+        elif model.startswith("claude"):
+            llm = Claude(model=model, api_key=settings.ANTHROPIC_API_KEY)
+        elif model.startswith("gpt"):
+            llm = OpenAIChat(model=model, api_key=settings.OPENAI_API_KEY)
+        else:
+            raise ValueError(f"Unsupported model: {model}")
 
-    return Assistant(
-        name=name,
-        llm=llm,
-        description="You are a helpful assistant.",
-        tools=[TavilyTools(api_key=settings.TAVILY_API_KEY), create_file, read_file, list_files],
-    )
+        return Assistant(
+            name=name,
+            llm=llm,
+            description="You are a helpful assistant.",
+            tools=[
+                TavilyTools(api_key=settings.TAVILY_API_KEY),
+                create_file,
+                read_file,
+                list_files,
+            ],
+        )
+    except Exception as e:
+        logger.error(f"Error creating assistant {name} with model {model}: {str(e)}")
+        raise AssistantError(f"Error creating assistant {name} with model {model}: {str(e)}")
 
 
 # Create assistants
@@ -84,10 +97,12 @@ def get_full_response(assistant: Assistant, prompt: str, max_retries=3, delay=2)
             else:
                 return str(response)
         except Exception as e:
-            logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
+            logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                raise
+                raise AssistantError(
+                    f"Max retries reached. Could not get a response from the assistant: {str(e)}"
+                )
 
-    raise Exception("Max retries reached. Could not get a response from the assistant.")
+    raise AssistantError("Max retries reached. Could not get a response from the assistant.")
