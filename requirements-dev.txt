@@ -4,12 +4,13 @@
 # Testing
 pytest==8.2.2
 pytest-mock==3.14.0
+pytest-asyncio
 
 # Type checking
-mypy==1.7.1  
+mypy==1.7.1
 
 # Debugging
-ipdb==0.13.13  
+ipdb==0.13.13
 
 # Security
 bandit==1.7.5

@@ -74,6 +74,7 @@ def create_assistant(name: str, model: str):
                 read_file,
                 list_files,
             ],
+            debug_mode=True,
         )
     except Exception as e:
         logger.error(f"Error creating assistant {name} with model {model}: {str(e)}")

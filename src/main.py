@@ -1,3 +1,5 @@
+import asyncio
+
 import typer
 from rich import print as rprint
 
@@ -19,7 +21,7 @@ def run_workflow(
     try:
         rprint("[bold]Starting SAA Orchestrator[/bold]")
         orchestrator = Orchestrator()
-        result = orchestrator.run_workflow(full_objective)
+        result = asyncio.run(orchestrator.run_workflow(full_objective))
 
         rprint("\n[bold green]Workflow completed![/bold green]")
         rprint("\n[bold]Final Output:[/bold]")

@@ -25,7 +25,7 @@ numpy==2.0.0
 python-multipart==0.0.9
 
 # Async support
-anyio==4.4.0
+asyncio
 
 # CLI enhancements
 click==8.1.7
@@ -34,8 +34,8 @@ shellingham==1.5.4
 # Time handling
 python-dateutil==2.9.0.post0
 
-# pgvector 
-# pypdf 
-# psycopg2-binary 
-# sqlalchemy 
+# pgvector
+# pypdf
+# psycopg2-binary
+# sqlalchemy
 # fastapi

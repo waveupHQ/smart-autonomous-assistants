@@ -16,3 +16,7 @@ class ConfigurationError(SAAOrchestratorError):
 
 class PluginError(SAAOrchestratorError):
     """Raised when there's an error with a plugin"""
+
+
+class WorkerError(Exception):
+    """Base exception class for SAA Workers"""
