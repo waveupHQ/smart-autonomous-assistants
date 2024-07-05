@@ -38,16 +38,19 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 
     # Assistant settings
-    MAIN_ASSISTANT: str = "claude-3-5-sonnet-20240620"
-    SUB_ASSISTANT: str = "gpt-3.5-turbo"
+    MAIN_ASSISTANT: str = "claude-3-sonnet-20240229"
+    SUB_ASSISTANT: str = "claude-3-haiku-20240307"
     REFINER_ASSISTANT: str = "gemini-1.5-pro-preview-0409"
 
     # Fallback models
-    FALLBACK_MODEL_1: str = "claude-3-sonnet-20240229"
+    FALLBACK_MODEL_1: str = "gpt-3.5-turbo"
     FALLBACK_MODEL_2: str = "gpt-3.5-turbo"
 
     # Tools
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
+
+    # New setting for SAAsWorkers
+    NUM_WORKERS: int = 3
 
     class Config:
         env_file = ".env"
