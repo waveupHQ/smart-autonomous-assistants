@@ -130,20 +130,24 @@ graph TD
     A[User Input] --> B[main.py]
     B --> C[Orchestrator]
     C --> D[MainAssistant]
-    C --> E[SubAssistant]
-    C --> F[RefinerAssistant]
+    C --> E[SAAsWorkers]
+    E --> F[SubAssistant 1]
+    E --> G[SubAssistant 2]
+    E --> H[SubAssistant 3]
+    C --> I[RefinerAssistant]
     D --> C
     E --> C
-    F --> C
-    C --> G[File Operations]
-    G --> H[Output Directory]
-    C --> I[Exchange Log]
-    I --> H
-    J[config.py] --> C
-    K[assistants.py] --> C
+    I --> C
+    C --> J[File Operations]
+    J --> K[Output Directory]
+    C --> L[Exchange Log]
+    L --> K
+    M[config.py] --> C
+    N[assistants.py] --> C
+    O[workers.py] --> E
 ```
 
-This architecture allows for a flexible and extensible system that can handle complex, multi-step tasks by leveraging the strengths of multiple AI assistants.
+This architecture allows for a flexible and extensible system that can handle complex, multi-step tasks by leveraging the strengths of multiple AI assistants and parallel processing capabilities.
 
 ## Contributing
 
