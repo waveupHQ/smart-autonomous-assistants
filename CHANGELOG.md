@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2024-07-05
+
+### Added
+
+- Implemented SAAsWorkers class for parallel task processing
+- Added asynchronous execution capabilities
+- Integrated SAAsWorkers with the existing Orchestrator class
+- Implemented structured output for task planning using Pydantic models
+- Added new tests for SAAsWorkers and updated existing tests
+- Improved error handling and logging throughout the project
+
+### Changed
+
+- Refactored Orchestrator to use SAAsWorkers for task planning and execution
+- Updated main assistant to generate JSON responses for task planning
+- Modified configuration to include settings for SAAsWorkers
+
+### Fixed
+
+- Resolved issues with JSON parsing in task planning
+- Improved error handling in worker task execution
 
 ## [0.1.1] - 2024-06-30
 
