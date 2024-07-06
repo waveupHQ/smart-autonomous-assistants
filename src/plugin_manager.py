@@ -1,3 +1,5 @@
+import importlib.util
+import os
 from typing import Callable, Dict
 
 import pluggy
@@ -21,12 +23,30 @@ class PluginManager:
         self.manager.register(plugin)
 
     def load_plugins(self, plugin_folder: str):
-        self.manager.load_setuptools_entrypoints("saa_orchestrator_plugins")
+        if not os.path.exists(plugin_folder):
+            return
+
+        for filename in os.listdir(plugin_folder):
+            if filename.endswith("_plugin.py"):
+                module_name = filename[:-3]  # Remove '.py'
+                module_path = os.path.join(plugin_folder, filename)
+                try:
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    for item_name in dir(module):
+                        item = getattr(module, item_name)
+                        if isinstance(item, type) and item_name.endswith("Plugin"):
+                            plugin_instance = item()
+                            self.register_plugin(plugin_instance)
+                except Exception:
+                    pass  # Silently ignore any loading errors
 
     def get_use_case_prompts(self) -> Dict[str, Callable]:
         prompts = {}
         for hook_impl in self.manager.hook.get_use_case_prompt.get_hookimpls():
-            prompts[hook_impl.plugin_name] = hook_impl.function
+            plugin_name = hook_impl.plugin.__class__.__name__
+            prompts[plugin_name] = hook_impl.function
         return prompts
 
 

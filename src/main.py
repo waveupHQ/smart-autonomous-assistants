@@ -3,6 +3,8 @@ import os
 
 import typer
 from rich import print as rprint
+from rich.console import Console
+from rich.table import Table
 
 from src.config import settings
 from src.orchestrator import Orchestrator, OrchestratorSettings
@@ -10,9 +12,18 @@ from src.plugin_manager import plugin_manager
 
 app = typer.Typer()
 
+# Define and create plugin folder
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+plugin_folder = os.path.join(project_root, "plugins")
+os.makedirs(plugin_folder, exist_ok=True)
+
+
 # Load plugins
-plugin_folder = os.path.join(os.path.dirname(__file__), "..", "plugins")
-plugin_manager.load_plugins(plugin_folder)
+try:
+    plugin_manager.load_plugins(plugin_folder)
+except Exception as e:
+    rprint(f"[bold red]Error loading plugins: {str(e)}[/bold red]")
 
 
 @app.command()
@@ -67,6 +78,38 @@ def run_workflow(
         rprint("\n[bold blue]Exchange log saved to 'exchange_log.md'[/bold blue]")
     except Exception as e:
         rprint(f"[bold red]An error occurred:[/bold red] {str(e)}")
+
+
+@app.command()
+def list_plugins():
+    """
+    List all available plugins.
+    """
+    console = Console()
+
+    rprint(f"[bold]Plugin folder:[/bold] {plugin_folder}")
+
+    plugins = plugin_manager.get_use_case_prompts()
+
+    if not plugins:
+        rprint(
+            "[yellow]No plugins found. Make sure plugin files end with '_plugin.py' and contain a valid plugin class.[/yellow]"
+        )
+        return
+
+    table = Table(title="Available Plugins")
+    table.add_column("Plugin Name", style="cyan", no_wrap=True)
+    table.add_column("Description", style="magenta")
+
+    for plugin_name, plugin_func in plugins.items():
+        description = (
+            plugin_func.__doc__.strip().split("\n")[0]
+            if plugin_func.__doc__
+            else "No description available"
+        )
+        table.add_row(plugin_name, description)
+
+    console.print(table)
 
 
 if __name__ == "__main__":
