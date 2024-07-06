@@ -34,6 +34,9 @@ shellingham==1.5.4
 # Time handling
 python-dateutil==2.9.0.post0
 
+#  Plugin system
+pluggy==1.5.0
+
 # pgvector
 # pypdf
 # psycopg2-binary
