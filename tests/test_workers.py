@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -36,7 +36,7 @@ async def test_plan_tasks_single_task(workers, mock_assistant):
             result = await workers.plan_tasks("Simple objective", mock_assistant)
 
     assert isinstance(result, PlanResponse)
-    assert result.objective_completion == True
+    assert result.objective_completion is True
     assert result.explanation == "This is a simple task that doesn't require subtasks."
     assert result.tasks is None
     MockAssistant.assert_called_once_with(
@@ -69,7 +69,7 @@ async def test_plan_tasks_multiple_tasks(workers, mock_assistant):
             result = await workers.plan_tasks("Complex objective", mock_assistant)
 
     assert isinstance(result, PlanResponse)
-    assert result.objective_completion == False
+    assert result.objective_completion is False
     assert result.explanation == "This objective requires multiple subtasks."
     assert len(result.tasks) == 3
     assert all(isinstance(task, WorkerTask) for task in result.tasks)

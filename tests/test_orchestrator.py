@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.orchestrator import Orchestrator, Task, TaskExchange
+from src.plugin_manager import PluginSpec
 from src.utils.exceptions import WorkflowError
 from src.workers import PlanResponse, WorkerTask
 
@@ -128,3 +129,61 @@ def test_state_to_dict(orchestrator):
     state_dict = orchestrator.state.to_dict()
     assert len(state_dict["task_exchanges"]) == 1
     assert len(state_dict["tasks"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_workflow_with_plugin(orchestrator):
+    class TestPlugin(PluginSpec):
+        def get_use_case_prompt(self, objective: str) -> str:
+            return f"Test plugin prompt for: {objective}"
+
+    orchestrator.use_case_prompts = {"TestPlugin": TestPlugin().get_use_case_prompt}
+
+    with patch("src.orchestrator.create_assistant") as mock_create_assistant, patch(
+        "src.workers.SAAsWorkers.plan_tasks"
+    ) as mock_plan_tasks:
+
+        mock_main_assistant = AsyncMock()
+        mock_refiner_assistant = AsyncMock()
+        mock_create_assistant.side_effect = [mock_main_assistant, mock_refiner_assistant]
+
+        mock_plan_tasks.return_value = PlanResponse(
+            objective_completion=True, explanation="Test result"
+        )
+
+        result = await orchestrator.run_workflow("Test objective", use_case="TestPlugin")
+
+        assert result == "Test result"
+        mock_plan_tasks.assert_called_once()
+        assert "Test plugin prompt for: Test objective" in mock_plan_tasks.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_run_workflow_with_custom_prompt(orchestrator):
+    custom_prompt = "Custom prompt: {objective}"
+    orchestrator.settings.custom_prompt_template = custom_prompt
+
+    with patch("src.orchestrator.create_assistant") as mock_create_assistant, patch(
+        "src.workers.SAAsWorkers.plan_tasks"
+    ) as mock_plan_tasks:
+
+        mock_main_assistant = AsyncMock()
+        mock_refiner_assistant = AsyncMock()
+        mock_create_assistant.side_effect = [mock_main_assistant, mock_refiner_assistant]
+
+        mock_plan_tasks.return_value = PlanResponse(
+            objective_completion=True, explanation="Test result"
+        )
+
+        result = await orchestrator.run_workflow("Test objective")
+
+        assert result == "Test result"
+        mock_plan_tasks.assert_called_once()
+        assert "Custom prompt: Test objective" in mock_plan_tasks.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_run_workflow_plugin_not_found(orchestrator):
+    with pytest.raises(WorkflowError) as exc_info:
+        await orchestrator.run_workflow("Test objective", use_case="NonExistentPlugin")
+    assert "Plugin 'NonExistentPlugin' not found" in str(exc_info.value)
