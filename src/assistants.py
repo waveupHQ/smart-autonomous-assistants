@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Any, List, Optional
 
 import vertexai
 from dotenv import load_dotenv
@@ -13,15 +14,12 @@ from src.config import settings
 from src.utils.exceptions import AssistantError
 from src.utils.logging import setup_logging
 
-load_dotenv()  # This loads the variables from .env
-
+load_dotenv()
 logger = setup_logging()
 
-# Ensure the output directory exists
 output_dir = os.path.join(os.getcwd(), "output")
 os.makedirs(output_dir, exist_ok=True)
 
-# Initialize VertexAI
 try:
     vertexai.init(project=settings.PROJECT_ID, location=settings.LOCATION)
 except Exception as e:
@@ -52,8 +50,13 @@ def list_files(directory: str = ""):
     return f"Directory not found: {full_path}"
 
 
-# Create assistants
-def create_assistant(name: str, model: str):
+def create_assistant(
+    name: str,
+    model: str,
+    description: str = "You are a helpful assistant.",
+    additional_tools: Optional[List] = None,
+    **kwargs: Any,
+) -> Assistant:
     try:
         if model.startswith("gemini"):
             llm = Gemini(model=model)
@@ -64,27 +67,29 @@ def create_assistant(name: str, model: str):
         else:
             raise ValueError(f"Unsupported model: {model}")
 
-        return Assistant(
-            name=name,
-            llm=llm,
-            description="You are a helpful assistant.",
-            tools=[
-                TavilyTools(api_key=settings.TAVILY_API_KEY),
-                create_file,
-                read_file,
-                list_files,
-            ],
-            debug_mode=True,
-        )
+        tools = [
+            TavilyTools(api_key=settings.TAVILY_API_KEY),
+            create_file,
+            read_file,
+            list_files,
+        ]
+
+        if additional_tools:
+            tools.extend(additional_tools)
+
+        assistant_kwargs = {
+            "name": name,
+            "llm": llm,
+            "description": description,
+            "tools": tools,
+            "debug_mode": False,
+            **kwargs,
+        }
+
+        return Assistant(**assistant_kwargs)
     except Exception as e:
         logger.error(f"Error creating assistant {name} with model {model}: {str(e)}")
         raise AssistantError(f"Error creating assistant {name} with model {model}: {str(e)}")
-
-
-# Create assistants
-main_assistant = create_assistant("MainAssistant", settings.MAIN_ASSISTANT)
-sub_assistant = create_assistant("SubAssistant", settings.SUB_ASSISTANT)
-refiner_assistant = create_assistant("RefinerAssistant", settings.REFINER_ASSISTANT)
 
 
 def get_full_response(assistant: Assistant, prompt: str, max_retries=3, delay=2) -> str:
